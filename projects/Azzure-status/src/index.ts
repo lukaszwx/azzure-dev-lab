@@ -1,57 +1,89 @@
-import { execSync } from "child_process";
+import { execSync } from "node:child_process";
+import { existsSync, readdirSync, statSync } from "node:fs";
+import { join } from "node:path";
 
-function run(command: string): string {
+const rootPath = join(process.cwd(), "..", "..");
+
+function run(command: string, cwd: string = rootPath): string {
   try {
     return execSync(command, {
-      encoding: "utf-8"
+      cwd,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
     }).trim();
   } catch {
-    return "Não disponível";
+    return "";
   }
 }
 
-console.clear();
+function getProjectFolders(): string[] {
+  const projectsPath = join(rootPath, "projects");
 
-console.log(`
-================================
-      AZZURE STATUS
-================================
-`);
+  if (!existsSync(projectsPath)) {
+    return [];
+  }
 
-const branch = run("git branch --show-current");
-
-const commits = run(
-  "git rev-list --count HEAD"
-);
-
-const lastCommit = run(
-  'git log -1 --pretty=format:"%h - %s"'
-);
-
-const modifiedFiles = run(
-  "git status --short"
-);
-
-console.log("Branch:");
-console.log(branch);
-
-console.log("\nTotal de commits:");
-console.log(commits);
-
-console.log("\nÚltimo commit:");
-console.log(lastCommit);
-
-console.log("\nArquivos modificados:");
-
-if (
-  modifiedFiles === "Não disponível" ||
-  modifiedFiles.length === 0
-) {
-  console.log("Nenhuma alteração.");
-} else {
-  console.log(modifiedFiles);
+  return readdirSync(projectsPath).filter((item) => {
+    const fullPath = join(projectsPath, item);
+    return statSync(fullPath).isDirectory();
+  });
 }
 
-console.log(`
-================================
-`);
+function printHeader() {
+  console.clear();
+
+  console.log("================================");
+  console.log("        AZZURE STATUS");
+  console.log("================================");
+  console.log("");
+}
+
+function printGitStatus() {
+  const branch = run("git branch --show-current") || "unknown";
+  const commits = run("git rev-list --count HEAD") || "0";
+  const lastCommit = run('git log -1 --pretty=format:"%h - %s"') || "none";
+  const status = run("git status --short");
+
+  console.log("Repository");
+  console.log(`Branch: ${branch}`);
+  console.log(`Commits: ${commits}`);
+  console.log(`Last: ${lastCommit}`);
+  console.log("");
+
+  console.log("Changes");
+
+  if (!status) {
+    console.log("Working tree clean.");
+  } else {
+    console.log(status);
+  }
+
+  console.log("");
+}
+
+function printProjects() {
+  const folders = getProjectFolders();
+
+  console.log("Projects");
+
+  if (folders.length === 0) {
+    console.log("No projects found.");
+    return;
+  }
+
+  for (const folder of folders) {
+    console.log(`- ${folder}`);
+  }
+
+  console.log("");
+}
+
+function main() {
+  printHeader();
+  printGitStatus();
+  printProjects();
+
+  console.log("================================");
+}
+
+main();
