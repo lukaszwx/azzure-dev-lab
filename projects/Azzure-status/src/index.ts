@@ -13,6 +13,7 @@ type ProjectInfo = {
   hasSrc: boolean;
   hasGitignore: boolean;
   score: number;
+  recommendations: string[];
 };
 
 function run(command: string, cwd: string = rootPath): string {
@@ -34,16 +35,30 @@ function detectProjectType(projectPath: string): string {
   return "Docs/Other";
 }
 
-function calculateScore(project: Omit<ProjectInfo, "score">): number {
+function generateRecommendations(project: Omit<ProjectInfo, "score" | "recommendations">): string[] {
+  const recommendations: string[] = [];
+
+  if (!project.hasReadme) recommendations.push("add README.md");
+  if (!project.hasPackageJson && project.type === "Node/TS") recommendations.push("add package.json");
+  if (!project.hasSrc && project.type !== "Docs/Other") recommendations.push("add src folder");
+  if (!project.hasGitignore && project.type !== "Docs/Other") recommendations.push("add .gitignore");
+
+  if (recommendations.length === 0) {
+    recommendations.push("project looks healthy");
+  }
+
+  return recommendations;
+}
+
+function calculateScore(project: Omit<ProjectInfo, "score" | "recommendations">): number {
   const checks = [
     project.hasReadme,
-    project.hasPackageJson,
-    project.hasSrc,
-    project.hasGitignore,
+    project.type === "Docs/Other" ? true : project.hasPackageJson,
+    project.type === "Docs/Other" ? true : project.hasSrc,
+    project.type === "Docs/Other" ? true : project.hasGitignore,
   ];
 
   const passed = checks.filter(Boolean).length;
-
   return Math.round((passed / checks.length) * 100);
 }
 
@@ -67,6 +82,7 @@ function getProjects(): ProjectInfo[] {
       return {
         ...baseProject,
         score: calculateScore(baseProject),
+        recommendations: generateRecommendations(baseProject),
       };
     });
 }
@@ -119,6 +135,18 @@ function printProjects() {
       Score: `${project.score}%`,
     }))
   );
+
+  console.log("Recommendations\n");
+
+  for (const project of projects) {
+    console.log(`${project.name}:`);
+
+    for (const recommendation of project.recommendations) {
+      console.log(`- ${recommendation}`);
+    }
+
+    console.log("");
+  }
 }
 
 function main() {
