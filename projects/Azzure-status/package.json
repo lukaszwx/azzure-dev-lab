@@ -1,7 +1,18 @@
 {
-  "name":"Azzure-status",
-  "version":"1.0.0",
-  "scripts":{
-      "dev":"tsx src/index.ts"
+  "name": "azzure-status",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "description": "Tipo: SCRIPT",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@types/node": "^25.8.0",
+    "tsx": "^4.22.0",
+    "typescript": "^6.0.3"
   }
 }
