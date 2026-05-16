@@ -1,0 +1,7 @@
+{
+  "name":"Azzure-status",
+  "version":"1.0.0",
+  "scripts":{
+      "dev":"tsx src/index.ts"
+  }
+}
