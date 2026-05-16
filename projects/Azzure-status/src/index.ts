@@ -7,10 +7,12 @@ const projectsPath = join(rootPath, "projects");
 
 type ProjectInfo = {
   name: string;
+  type: string;
   hasReadme: boolean;
   hasPackageJson: boolean;
   hasSrc: boolean;
-  type: string;
+  hasGitignore: boolean;
+  score: number;
 };
 
 function run(command: string, cwd: string = rootPath): string {
@@ -32,23 +34,39 @@ function detectProjectType(projectPath: string): string {
   return "Docs/Other";
 }
 
+function calculateScore(project: Omit<ProjectInfo, "score">): number {
+  const checks = [
+    project.hasReadme,
+    project.hasPackageJson,
+    project.hasSrc,
+    project.hasGitignore,
+  ];
+
+  const passed = checks.filter(Boolean).length;
+
+  return Math.round((passed / checks.length) * 100);
+}
+
 function getProjects(): ProjectInfo[] {
   if (!existsSync(projectsPath)) return [];
 
   return readdirSync(projectsPath)
-    .filter((item) => {
-      const fullPath = join(projectsPath, item);
-      return statSync(fullPath).isDirectory();
-    })
+    .filter((item) => statSync(join(projectsPath, item)).isDirectory())
     .map((name) => {
       const projectPath = join(projectsPath, name);
 
-      return {
+      const baseProject = {
         name,
         type: detectProjectType(projectPath),
         hasReadme: existsSync(join(projectPath, "README.md")),
         hasPackageJson: existsSync(join(projectPath, "package.json")),
         hasSrc: existsSync(join(projectPath, "src")),
+        hasGitignore: existsSync(join(projectPath, ".gitignore")),
+      };
+
+      return {
+        ...baseProject,
+        score: calculateScore(baseProject),
       };
     });
 }
@@ -97,6 +115,8 @@ function printProjects() {
       README: yesNo(project.hasReadme),
       Package: yesNo(project.hasPackageJson),
       Src: yesNo(project.hasSrc),
+      Gitignore: yesNo(project.hasGitignore),
+      Score: `${project.score}%`,
     }))
   );
 }
