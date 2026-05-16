@@ -1,9 +1,10 @@
 import { execSync } from "node:child_process";
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const rootPath = join(process.cwd(), "..", "..");
 const projectsPath = join(rootPath, "projects");
+const reportPath = join(rootPath, "docs", "status-report.md");
 
 type ProjectInfo = {
   name: string;
@@ -35,21 +36,6 @@ function detectProjectType(projectPath: string): string {
   return "Docs/Other";
 }
 
-function generateRecommendations(project: Omit<ProjectInfo, "score" | "recommendations">): string[] {
-  const recommendations: string[] = [];
-
-  if (!project.hasReadme) recommendations.push("add README.md");
-  if (!project.hasPackageJson && project.type === "Node/TS") recommendations.push("add package.json");
-  if (!project.hasSrc && project.type !== "Docs/Other") recommendations.push("add src folder");
-  if (!project.hasGitignore && project.type !== "Docs/Other") recommendations.push("add .gitignore");
-
-  if (recommendations.length === 0) {
-    recommendations.push("project looks healthy");
-  }
-
-  return recommendations;
-}
-
 function calculateScore(project: Omit<ProjectInfo, "score" | "recommendations">): number {
   const checks = [
     project.hasReadme,
@@ -60,6 +46,21 @@ function calculateScore(project: Omit<ProjectInfo, "score" | "recommendations">)
 
   const passed = checks.filter(Boolean).length;
   return Math.round((passed / checks.length) * 100);
+}
+
+function generateRecommendations(project: Omit<ProjectInfo, "score" | "recommendations">): string[] {
+  const recommendations: string[] = [];
+
+  if (!project.hasReadme) recommendations.push("add README.md");
+  if (!project.hasPackageJson && project.type !== "Docs/Other") recommendations.push("add package.json");
+  if (!project.hasSrc && project.type !== "Docs/Other") recommendations.push("add src folder");
+  if (!project.hasGitignore && project.type !== "Docs/Other") recommendations.push("add .gitignore");
+
+  if (recommendations.length === 0) {
+    recommendations.push("project looks healthy");
+  }
+
+  return recommendations;
 }
 
 function getProjects(): ProjectInfo[] {
@@ -91,6 +92,44 @@ function yesNo(value: boolean): string {
   return value ? "yes" : "no";
 }
 
+function generateReport(projects: ProjectInfo[]): string {
+  const date = new Date().toLocaleString("pt-BR");
+
+  let report = `# Azzure Status Report\n\n`;
+  report += `Gerado em: ${date}\n\n`;
+  report += `## Projetos\n\n`;
+  report += `| Projeto | Tipo | README | Package | Src | Gitignore | Score |\n`;
+  report += `|---|---|---|---|---|---|---|\n`;
+
+  for (const project of projects) {
+    report += `| ${project.name} | ${project.type} | ${yesNo(project.hasReadme)} | ${yesNo(project.hasPackageJson)} | ${yesNo(project.hasSrc)} | ${yesNo(project.hasGitignore)} | ${project.score}% |\n`;
+  }
+
+  report += `\n## Recomendações\n\n`;
+
+  for (const project of projects) {
+    report += `### ${project.name}\n\n`;
+
+    for (const recommendation of project.recommendations) {
+      report += `- ${recommendation}\n`;
+    }
+
+    report += `\n`;
+  }
+
+  return report;
+}
+
+function saveReport(projects: ProjectInfo[]) {
+  const docsPath = join(rootPath, "docs");
+
+  if (!existsSync(docsPath)) {
+    mkdirSync(docsPath);
+  }
+
+  writeFileSync(reportPath, generateReport(projects), "utf-8");
+}
+
 function printHeader() {
   console.clear();
   console.log("================================");
@@ -114,9 +153,7 @@ function printGitStatus() {
   console.log("");
 }
 
-function printProjects() {
-  const projects = getProjects();
-
+function printProjects(projects: ProjectInfo[]) {
   console.log("Projects");
 
   if (projects.length === 0) {
@@ -150,9 +187,14 @@ function printProjects() {
 }
 
 function main() {
+  const projects = getProjects();
+
   printHeader();
   printGitStatus();
-  printProjects();
+  printProjects(projects);
+  saveReport(projects);
+
+  console.log(`Report saved at docs/status-report.md`);
   console.log("================================");
 }
 
